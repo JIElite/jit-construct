@@ -39,16 +39,30 @@ int main(int argc, char *argv[])
 	for (char *p = read_file(argv[1]); *p; p++) {
 		switch (*p) {
 		case '>':
-			|  inc  PTR
-			break;
 		case '<':
-			|  dec  PTR
+        {
+            int ptr_offset = 0;
+            while (*p && (*p == '>' || *p == '<')) {
+                if (*p == '>') { ptr_offset++; }
+                else if (*p == '<') { ptr_offset--;}
+                p++;
+            }
+            p--;
+            | add PTR, ptr_offset
+        }
 			break;
-		case '+':
-			|  inc  byte [PTR]
-			break;
+		case '+': 
 		case '-':
-			|  dec  byte [PTR]
+        {
+            int value_offset = 0;
+            while (*p && (*p == '+' || *p == '-')) {
+                if (*p == '+') { value_offset++; }
+                else if (*p == '-') { value_offset--; }
+                p++;
+            }
+            p--;
+            |add byte [PTR], value_offset
+        }
 			break;
 		case '.':
 			|  movzx edi, byte [PTR]
@@ -59,16 +73,24 @@ int main(int argc, char *argv[])
 			|  mov   byte [PTR], al
 			break;
 		case '[':
-			if (top == limit) err("Nesting too deep.");
-			// Each loop gets two pclabels: at the beginning and end.
-			// We store pclabel offsets in a stack to link the loop
-			// begin and end together.
-			maxpc += 2;
-			*top++ = maxpc;
-			dasm_growpc(&state, maxpc);
-			|  cmp  byte [PTR], 0
-			|  je   =>(maxpc-2)
-			|=>(maxpc-1):
+			/* clear loop */ 
+            if ( *(p+1) == '-' && *(p+2) == ']'){
+                | mov byte [PTR], 0
+                p += 2;
+            }
+            else {   /* general case */
+
+                if (top == limit) err("Nesting too deep.");
+                // Each loop gets two pclabels: at the beginning and end.
+                // We store pclabel offsets in a stack to link the loop
+                // begin and end together.
+                maxpc += 2;
+                *top++ = maxpc;
+                dasm_growpc(&state, maxpc);
+                |  cmp  byte [PTR], 0
+                |  je   =>(maxpc-2)
+                |=>(maxpc-1):
+            }
 			break;
 		case ']':
 			if (top == pcstack) err("Unmatched ']'");
