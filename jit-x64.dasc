@@ -45,13 +45,13 @@ int main(int argc, char *argv[])
             case '>':
             case '<': {
                 int ptr_offset = move_pointer(&p);
-                | add PTR, ptr_offset
+                |  add PTR, ptr_offset
             }
             break;
             case '+':
             case '-': {
                 int value_offset = add_value(&p);
-                |add byte [PTR], value_offset
+                |  add byte [PTR], value_offset
             }
             break;
             case '.':
@@ -64,10 +64,18 @@ int main(int argc, char *argv[])
                 break;
             case '[':
                 /* clear loop */
-                if ( *(p+1) == '-' && *(p+2) == ']') {
-                    | mov byte [PTR], 0
+                if (*(p+1) == '-' && *(p+2) == ']') {
+                    |  mov byte [PTR], 0
                     p += 2;
-                } else {
+                }
+                /* cola cat pattern "[>+<-]" */
+                else if (*(p+1) == '>' && *(p+2) == '+' && *(p+3) == '<' && *(p+4) == '-' && *(p+5) == ']'){
+                    |  mov cl, byte[PTR]
+                    |  add byte[PTR+1], cl
+                    |  mov byte[PTR], 0
+                    p += 5;
+                }
+                else {
                     /* general case */
 
                     if (top == limit) err("Nesting too deep.");
@@ -80,7 +88,7 @@ int main(int argc, char *argv[])
                     |  cmp  byte [PTR], 0
                     |  je   =>(maxpc-2)
                     |=>(maxpc-1):
-                    }
+                }
                 break;
             case ']':
                 if (top == pcstack) err("Unmatched ']'");
@@ -139,3 +147,4 @@ int add_value(char **p)
 
     return value_offset;
 }
+
